@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>水位监测</title>
+    <link rel="stylesheet" href="js/bootstrap.min.css">
+    <style>
+        body {
+            /*background: url('https://cdn.luogu.com.cn/upload/image_hosting/1wmcmflg.png') no-repeat center center fixed;*/
+            background-color: #CCC;
+            color: #1D1D1D;
+        }
+
+        .container {
+            animation: fadeInAnimation 1s;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            background-color: rgba(255, 255, 255, 0.4);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        @keyframes fadeInAnimation {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .table-row {
+            animation: rowFadeInAnimation 0.5s;
+            animation-fill-mode: forwards;
+            opacity: 0;
+        }
+
+        @keyframes rowFadeInAnimation {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .table {
+            width: 100%;
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: nowrap;
+        }
+
+        .col-7, .col-5 {
+            flex: 1;
+        }
+
+        .col-7 {
+            width: 60%;
+        }
+
+        .col-5 {
+            width: 40%;
+            overflow-x: auto;
+        }
+
+        .table td, .table th {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .upload-container {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .btn {
+            margin: 5px;
+        }
+    </style>
+    <script src="js/chart.js"></script>
+</head>
+<body>
+    <style>
+        @media only screen and (max-width: 767px) {
+            #sidebar_search_box input[type=text] {
+                width: calc(100% - 24px)
+            }
+        }
+    </style>
+    <div class="container mt-3">
+        <h1 class="text-left">水位监测</h1>
+
+        <div class="input-group mb-3" style="animation: slideInAnimation 1s;">
+            <input type="number" id="waterLevelInput" class="form-control" placeholder="请输入水位">
+            <button class="btn btn-primary" onclick="addWaterLevel()">添加</button>
+        </div>
+        <div class="upload-container">
+            <input type="file" id="fileInput" style="display: none;">
+            <button class="btn" onclick="document.getElementById('fileInput').click()">上传.csv文件</button>
+            <button class="btn" onclick="readFile()">加载文件</button>
+        </div>
+
+        <div class="row" style="animation: fadeInDownAnimation 1s;">
+            <div class="col-7">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">时间</th>
+                            <th style="width: 50%;">水位</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="waterLevelTableBody"></tbody>
+                </table>
+            </div>
+            <div class="col-5">
+                <canvas id="waterLevelChart" style="box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);"></canvas>
+                <button class="btn btn-success d-block mx-auto mt-3" onclick="updateChart()" style="animation: slideInAnimation 1s;">更新</button>
+            </div>
+        </div>
+
+        <div class="text-center mt-3" style="animation: fadeInUpAnimation 1s;">Developed by <a href="https://www.cnblogs.com/luogu-int64">MituFun</a></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            updateChart();
+        });
+
+        // 在全局范围内声明reader对象
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+            const contents = e.target.result;
+            const rows = contents.split('\n');
+
+            rows.forEach(row => {
+                const [time, waterLevel] = row.split(',');
+                if (time && waterLevel) {
+                    // 添加到表格
+                    const waterLevelTableBody = document.getElementById('waterLevelTableBody');
+                    const newRow = waterLevelTableBody.insertRow();
+                    newRow.classList.add('table-row');
+                    const cell1 = newRow.insertCell(0);
+                    const cell2 = newRow.insertCell(1);
+                    const cell3 = newRow.insertCell(2);
+                    cell1.textContent = time;
+                    cell2.textContent = waterLevel;
+                    cell3.innerHTML = `<button class="btn btn-danger" onclick="deleteRow(this)">删除</button>`;
+                }
+            });
+
+            // 添加到图表
+            updateChart();
+        }
+
+        function readFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            // 重置reader对象状态
+            reader.abort();
+            reader.readAsText(file);
+        }
+
+        function formatDate(date) {
+            const pad = (str) => str.toString().padStart(2, '0');
+            return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+        }
+
+        function addWaterLevel() {
+            const waterLevelInput = document.getElementById('waterLevelInput');
+            const waterLevel = parseFloat(waterLevelInput.value);
+            const timestamp = formatDate(new Date());
+
+            // 添加至表格
+            const waterLevelTableBody = document.getElementById('waterLevelTableBody');
+            const row = waterLevelTableBody.insertRow();
+            row.classList.add('table-row');
+            const cell1 = row.insertCell(0);
+            const cell2 = row.insertCell(1);
+            const cell3 = row.insertCell(2);
+            cell1.textContent = timestamp;
+            cell2.textContent = waterLevel;
+            cell3.innerHTML = `<button class="btn btn-danger" onclick="deleteRow(this)">删除</button>`;
+
+            // 添加动画效果
+            setTimeout(() => {
+                row.classList.remove('table-row');
+            }, 1000);
+
+            // 清空输入框
+            waterLevelInput.value = '';
+        }
+
+        function deleteRow(button) {
+            const row = button.parentElement.parentElement;
+            row.remove();
+        }
+
+        function updateChart() {
+            const labels = [];
+            const data = [];
+
+            const rows = document.getElementById('waterLevelTableBody').getElementsByTagName('tr');
+            for (let row of rows) {
+                const cells = row.getElementsByTagName('td');
+                labels.push(cells[0].textContent);
+                data.push(parseFloat(cells[1].textContent));
+            }
+
+            const ctx = document.getElementById('waterLevelChart').getContext('2d');
+
+            if (window.myChart) {
+                window.myChart.destroy();
+            }
+
+            window.myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '水位',
+                        data: data,
+                        fill: false,
+                        borderColor: 'rgb(29, 29, 29)',
+                        tension: 0.1
+                    }]
+                },
+            });
+        }
+
+    </script>
+    <script src="js/mouse-click.js"></script>
+    <script type="text/javascript" color="47,135,193" opacity='0.5' zIndex="-2" count="199" src="js/canvas-nest.min.js"></script>
+</body>
+</html>
