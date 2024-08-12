@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>水位监测</title>
+    <script defer src="https://admin.mitufun.top/script.js" data-website-id="71987118-3673-48ef-82c2-f1ae9817d481"></script>
+	<link rel="stylesheet" href="css/bootstrap.min.css">
+	<style>
+		body {
+			background-color: #CCC;
+			color: #1D1D1D;
+		}
+
+		.container {
+			animation: fadeInAnimation 1s;
+			box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+			background-color: rgba(255, 255, 255, 0.4);
+			padding: 20px;
+			border-radius: 10px;
+		}
+
+		@keyframes fadeInAnimation {
+			from {
+				opacity: 0;
+			}
+
+			to {
+				opacity: 1;
+			}
+		}
+
+		.table-row {
+			animation: rowFadeInAnimation 0.5s;
+			animation-fill-mode: forwards;
+			opacity: 0;
+		}
+
+		@keyframes rowFadeInAnimation {
+			from {
+				opacity: 0;
+			}
+
+			to {
+				opacity: 1;
+			}
+		}
+
+		.table {
+			width: 100%;
+		}
+
+		.row {
+			display: flex;
+			flex-wrap: nowrap;
+		}
+
+		.col-7, .col-5 {
+			flex: 1;
+		}
+
+		.col-7 {
+			width: 60%;
+		}
+
+		.col-5 {
+			width: 40%;
+			overflow-x: auto;
+		}
+
+		.table td, .table th {
+			text-align: center;
+			vertical-align: middle;
+		}
+
+		.upload-container {
+			display: flex;
+			justify-content: flex-end;
+			align-items: center;
+		}
+
+		.btn {
+			margin: 5px;
+		}
+
+		#waterLevelInput {
+			border: 1px solid #ccc;
+			border-radius: 5px;
+			padding: 5px;
+			box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+		}
+	</style>
+	<script src="js/chart.js"></script>
+</head>
+<body>
+	<style>
+		@media only screen and (max-width: 767px) {
+			#sidebar_search_box input[type=text] {
+				width: calc(100% - 24px)
+			}
+		}
+	</style>
+	<div class="container mt-3">
+		<h1 class="text-center">水位监测</h1>
+
+		<div class="row" style="animation: fadeInDownAnimation 1s;">
+			<div class="col-7">
+				<table class="table table-bordered">
+					<thead>
+						<tr>
+							<th style="width: 30%;">时间</th>
+							<th style="width: 50%;">水位</th>
+							<th>操作</th>
+						</tr>
+					</thead>
+					<tbody id="waterLevelTableBody"></tbody>
+				</table>
+			</div>
+			<div class="col-5">
+				<canvas id="waterLevelChart" style="box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);"></canvas>
+				<button class="btn btn-success d-block mx-auto mt-3" onclick="updateChart()" style="animation: slideInAnimation 1s;">更新</button>
+			</div>
+		</div>
+
+		<div class="row">
+			<div class="col-7">
+				<input type="text" id="waterLevelInput" placeholder="输入水位" style="border: 1px solid #ccc; border-radius: 5px; padding: 5px; box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);">
+				<button class="btn btn-primary" id="addDataBtn" onclick="addWaterLevel()">添加数据</button>
+			</div>
+		</div>
+
+		<div class="text-center mt-3" style="animation: fadeInUpAnimation 1s;">Developed by <a href="https://www.cnblogs.com/luogu-int64">MituFun</a></div>
+	</div>
+
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+			updateChart();
+			fetch('/api/getData')
+				.then(response => response.json())
+				.then(data => {
+					data.forEach(entry => {
+						const time = entry.time;
+						const level = entry.level;
+						const waterLevelTableBody = document.getElementById('waterLevelTableBody');
+						const newRow = waterLevelTableBody.insertRow();
+						newRow.classList.add('table-row');
+						const cell1 = newRow.insertCell(0);
+						const cell2 = newRow.insertCell(1);
+						const cell3 = newRow.insertCell(2);
+						cell1.textContent = time;
+						cell2.textContent = level;
+						cell3.innerHTML = `<button class="btn btn-danger" onclick="deleteRow(this)">删除</button>`;
+					});
+					updateChart();
+				})
+				.catch(error => console.error('Error fetching data:', error));
+		});
+		function formatTimestamp(timestamp) {
+			const date = new Date(timestamp);
+			const month = String(date.getMonth() + 1).padStart(2, '0');
+			const day = String(date.getDate()).padStart(2, '0');
+			const hours = String(date.getHours()).padStart(2, '0');
+			const minutes = String(date.getMinutes()).padStart(2, '0');
+			const seconds = String(date.getSeconds()).padStart(2, '0');
+
+			return `${month}-${day} ${hours}:${minutes}:${seconds}`;
+		}
+		function addWaterLevel() {
+			const waterLevelInput = document.getElementById('waterLevelInput');
+			const waterLevel = parseFloat(waterLevelInput.value);
+			const timestamp = new Date().toISOString();
+			fetch(`/api/update?level=${waterLevel}`)
+				.then(response => {
+					if (response.ok) {
+						const waterLevelTableBody = document.getElementById('waterLevelTableBody');
+						const newRow = waterLevelTableBody.insertRow();
+						newRow.classList.add('table-row');
+						const cell1 = newRow.insertCell(0);
+						const cell2 = newRow.insertCell(1);
+						const cell3 = newRow.insertCell(2);
+						cell1.textContent = formatTimestamp(timestamp);
+						cell2.textContent = waterLevel;
+						cell3.innerHTML = `<button class="btn btn-danger" onclick="deleteRow(this)">删除</button>`;
+						waterLevelInput.value = '';
+						updateChart();
+					}
+				})
+				.catch(error => console.error('Error adding data:', error));
+		}
+
+		function deleteRow(button) {
+			const row = button.parentElement.parentElement;
+			const time = row.cells[0].textContent; // 获取要删除行的时间戳
+			row.remove();
+			updateChart();
+			fetch(`/api/delete?time=${time}`)
+				.then(response => {
+					if (response.ok) {
+						console.log("Data deleted successfully");
+					}
+				})
+				.catch(error => console.error('Error deleting data:', error));
+		}
+
+		function updateChart() {
+			const labels = [];
+			const data = [];
+
+			const rows = document.getElementById('waterLevelTableBody').getElementsByTagName('tr');
+			for (let row of rows) {
+				const cells = row.getElementsByTagName('td');
+				labels.push(cells[0].textContent);
+				data.push(parseFloat(cells[1].textContent));
+			}
+
+			const ctx = document.getElementById('waterLevelChart').getContext('2d');
+
+			if (window.myChart) {
+				window.myChart.destroy();
+			}
+
+			window.myChart = new Chart(ctx, {
+				type: 'line',
+				data: {
+					labels: labels,
+					datasets: [{
+						label: '水位',
+						data: data,
+						fill: false,
+						borderColor: 'rgb(29, 29, 29)',
+						tension: 0.1
+					}]
+				},
+			});
+		}
+	</script>
+	<script src="js/mouse-click.js"></script>
+	<script type="text/javascript" color="47,135,193" opacity='0.5' zIndex="-2" count="199" src="js/canvas-nest.min.js"></script>
+</body>
+</html>
